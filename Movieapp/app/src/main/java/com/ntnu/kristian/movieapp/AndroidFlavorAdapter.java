@@ -11,7 +11,9 @@ import android.widget.TextView;
 import com.squareup.picasso.Picasso;
 
 import java.util.List;
-
+/**
+ * Created by Kristian on 27.02.2016.
+ */
 public class AndroidFlavorAdapter extends ArrayAdapter<AndroidFlavor> {
     private static final String LOG_TAG = AndroidFlavorAdapter.class.getSimpleName();
 
@@ -53,11 +55,13 @@ public class AndroidFlavorAdapter extends ArrayAdapter<AndroidFlavor> {
             convertView = LayoutInflater.from(getContext()).inflate(
                     R.layout.flavor_item, parent, false);
         }
-
+        // selects the (now empty) imageview for poster
         ImageView iconView = (ImageView) convertView.findViewById(R.id.flavor_image);
+        // w342 is for size of image, I found 342 worked well for my Galaxy S5, not tested on other phones
+        // Some phones might be ok with lower resolutions for quicker load times
         String baseUrl = "http://image.tmdb.org/t/p/w342";
+        // Uses picasso library to load image from url into the imageview
         Picasso.with(getContext()).load(baseUrl + androidFlavor.versionNumber).into(iconView);
-        //iconView.setImageResource(androidFlavor.image);
 
         TextView versionNameView = (TextView) convertView.findViewById(R.id.flavor_text);
         versionNameView.setText(androidFlavor.versionName);

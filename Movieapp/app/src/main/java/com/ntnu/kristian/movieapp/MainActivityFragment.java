@@ -12,9 +12,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.GridView;
 import android.widget.ImageView;
-
-
-import com.squareup.picasso.Picasso;
+import android.widget.ProgressBar;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -45,21 +43,8 @@ public class MainActivityFragment extends Fragment {
     // How to load images with Picasso
     //Picasso.with(getContext()).load(url).into(imageView);
 
-    private AndroidFlavorAdapter mImageAdapter;
     private AndroidFlavorAdapter mMovieAdapter;
-    AndroidFlavor[] androidFlavors = {
-            new AndroidFlavor("Cupcake", "1.5", R.drawable.cupcake),
-            new AndroidFlavor("Donut", "1.6", R.drawable.donut),
-            new AndroidFlavor("Eclair", "2.0-2.1", R.drawable.eclair),
-            new AndroidFlavor("Froyo", "2.2-2.2.3", R.drawable.froyo),
-            new AndroidFlavor("GingerBread", "2.3-2.3.7", R.drawable.gingerbread),
-            new AndroidFlavor("Honeycomb", "3.0-3.2.6", R.drawable.honeycomb),
-            new AndroidFlavor("Ice Cream Sandwich", "4.0-4.0.4", R.drawable.icecream),
-            new AndroidFlavor("Jelly Bean", "4.1-4.3.1", R.drawable.jellybean),
-            new AndroidFlavor("KitKat", "4.4-4.4.4", R.drawable.kitkat),
-            new AndroidFlavor("Lollipop", "5.0-5.1.1", R.drawable.lollipop)
-    };
-
+    public ProgressBar progressBar;
 
     public MainActivityFragment() {
     }
@@ -70,6 +55,10 @@ public class MainActivityFragment extends Fragment {
         updatePosters();
     }
     public void updatePosters(){
+        // Makes progressbar start spinning before it downloads data
+        progressBar.setVisibility(View.VISIBLE);
+        //
+
         FetchPosterTask posterTask = new FetchPosterTask();
         posterTask.execute();
     }
@@ -78,26 +67,26 @@ public class MainActivityFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
-        /*
-        mMovieAdapter =
-                new ArrayAdapter<>(
-                        getActivity(), // The current context (this activity)
-                        R.layout.list_item_movie, // The name of the layout ID.
-                        R.id.list_item_movie_imageview, // The ID of the textview to populate.
-                        new ArrayList<String>());
-                        */
-        mImageAdapter = new AndroidFlavorAdapter(getActivity(), Arrays.asList(androidFlavors));
+        // initializes progressBar from ID in fragment_main.xml file
+        progressBar = (ProgressBar) rootView.findViewById(R.id.progressBar);
+
+        // AndroidFlavorAdapter is a custom adapter used for the movieposters
         mMovieAdapter = new AndroidFlavorAdapter(getActivity(), new ArrayList<AndroidFlavor>());
+        // Initializes the gridview with posters
         GridView gridView = (GridView) rootView.findViewById(R.id.gridview);
+        // Sets gridview adapter as mMovieAdapter
         gridView.setAdapter(mMovieAdapter);
 
-
+        // For detailActivity
         gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                AndroidFlavor poster = mImageAdapter.getItem(position);
-                Intent intent = new Intent(getActivity(), DetailActivity.class).putExtra(Intent.EXTRA_TEXT, poster.image);
-                startActivity(intent);
+                AndroidFlavor poster = mMovieAdapter.getItem(position);
+                Intent i = new Intent(getActivity(), DetailActivity.class);
+                // Inserts the entire poster object into intent, so we can use all its variables in detail
+                // -activity, it is not used now, but right now only movieposter is used in detailactivity
+                i.putExtra("movieTag", poster);
+                startActivity(i);
             }
         });
         return rootView;
@@ -119,7 +108,7 @@ public class MainActivityFragment extends Fragment {
             try {
                 URL url = new URL("http://api.themoviedb.org/3/discover/movie?sort_by=popularity.desc&api_key=5aa5bc75c39f6d200fa6bd741896baaa");
 
-                // Create the request to OpenWeatherMap, and open the connection
+                // Create the request to theMovieDataBase, and open the connection
                 urlConnection = (HttpURLConnection) url.openConnection();
                 urlConnection.setRequestMethod("GET");
                 urlConnection.connect();
@@ -159,7 +148,7 @@ public class MainActivityFragment extends Fragment {
                     try {
                         reader.close();
                     } catch (final IOException e) {
-                        Log.e("PlaceholderFragment", "Error closing stream", e);
+                        Log.e("MainActivityFragment", "Error closing stream", e);
                     }
                 }
             }
@@ -176,7 +165,7 @@ public class MainActivityFragment extends Fragment {
         private AndroidFlavor[] getPosterDataFromJson(String json)
                 throws JSONException {
                 //
-
+            // Used a jsonformatter to look at how the json is arranged, to know what arrays and objects I need
             final String OWM_RESULTS = "results";
             final String OWM_TITLE = "title";
             final String OWM_NUMBER = "poster_path";
@@ -185,6 +174,7 @@ public class MainActivityFragment extends Fragment {
             JSONObject posterJson = new JSONObject(json);
             JSONArray posterArray = posterJson.getJSONArray(OWM_RESULTS);
 
+            // json returns a list of 20 most popular movies
             AndroidFlavor[] posterList = new AndroidFlavor[20];
 
             for(int i = 0; i < posterArray.length(); i++){
@@ -194,9 +184,13 @@ public class MainActivityFragment extends Fragment {
 
                 JSONObject movie = posterArray.getJSONObject(i);
 
+                // Title of movie
                 name = movie.getString(OWM_TITLE);
+                // Number is the posternumber of the url. Every poster has the same baseurl, but different number
                 number = movie.getString(OWM_NUMBER);
+                // ID of movie, never really used anywhere
                 image = movie.getInt(OWM_IMAGE);
+                // adds movies to the list of posters.
                 posterList[i] = new AndroidFlavor(name, number, image);
             }
             return posterList;
@@ -205,11 +199,14 @@ public class MainActivityFragment extends Fragment {
         @Override
         protected void onPostExecute(AndroidFlavor[] result){
             if(result != null){
+                // clears adapter, just to make sure there is no unnecessary objects in it
                 mMovieAdapter.clear();
                 for(AndroidFlavor movieList : result){
-                    String s = "..";
-                   mMovieAdapter.add(movieList);
+                    mMovieAdapter.add(movieList);
                 }
+
+                // Removes progressbar, because the data is finished downloading
+                progressBar.setVisibility(View.GONE);
             }
         }
     }
